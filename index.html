@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#16a34a" />
+  <meta name="description" content="Rastreador de hábitos diarios durante 30 días" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Hábitos" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Rastreador de Hábitos 30 Días</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+
+  <!-- Google Fonts: DM Sans + DM Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Recharts via UMD CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:       #16a34a;
+      --green-light: #22c55e;
+      --green-pale:  #dcfce7;
+      --green-dark:  #14532d;
+      --red:         #ef4444;
+      --red-pale:    #fee2e2;
+      --blue:        #3b82f6;
+      --purple:      #8b5cf6;
+      --orange:      #f97316;
+      --gray-50:     #f9fafb;
+      --gray-100:    #f3f4f6;
+      --gray-200:    #e5e7eb;
+      --gray-300:    #d1d5db;
+      --gray-400:    #9ca3af;
+      --gray-500:    #6b7280;
+      --gray-600:    #4b5563;
+      --gray-700:    #374151;
+      --gray-800:    #1f2937;
+      --gray-900:    #111827;
+      --white:       #ffffff;
+      --radius:      10px;
+      --radius-sm:   6px;
+      --shadow:      0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+      --shadow-md:   0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+      --shadow-lg:   0 10px 15px rgba(0,0,0,.1), 0 4px 6px rgba(0,0,0,.05);
+      --font:        'DM Sans', system-ui, sans-serif;
+      --mono:        'DM Mono', 'Courier New', monospace;
+      /* Surface tokens */
+      --bg:          #f0fdf4;
+      --surface:     var(--white);
+      --surface-2:   var(--gray-50);
+      --border:      var(--gray-200);
+      --text:        var(--gray-900);
+      --text-2:      var(--gray-600);
+      --text-3:      var(--gray-400);
+      --header-bg:   var(--green);
+    }
+
+    body.dark {
+      --bg:        #0a1628;
+      --surface:   #0f1f35;
+      --surface-2: #162238;
+      --border:    #1e3150;
+      --text:      #e2e8f0;
+      --text-2:    #94a3b8;
+      --text-3:    #64748b;
+      --green-pale: #14532d;
+      --red-pale:  #450a0a;
+      --header-bg: #0d3320;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      transition: background .3s, color .3s;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────── */
+    #app { min-height: 100vh; }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 16px 32px;
+    }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    .header {
+      background: var(--header-bg);
+      padding: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-title h1 {
+      font-size: clamp(15px, 4vw, 20px);
+      font-weight: 700;
+      color: white;
+      line-height: 1.2;
+    }
+    .header-title span.emoji {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* ── Buttons ──────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font);
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      transition: all .15s;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(.96); }
+
+    .btn-icon {
+      width: 38px;
+      height: 38px;
+      justify-content: center;
+      background: rgba(255,255,255,.15);
+      color: white;
+      font-size: 16px;
+      border-radius: var(--radius-sm);
+    }
+    .btn-icon:hover { background: rgba(255,255,255,.25); }
+
+    .btn-sm {
+      padding: 8px 12px;
+      font-size: 12px;
+      background: rgba(255,255,255,.15);
+      color: white;
+    }
+    .btn-sm:hover { background: rgba(255,255,255,.25); }
+    .btn-sm svg { width: 14px; height: 14px; }
+
+    .btn-danger {
+      background: rgba(239,68,68,.2);
+      color: #fca5a5;
+    }
+    .btn-danger:hover { background: rgba(239,68,68,.35); }
+
+    /* ── Cards ────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .card-body { padding: 16px; }
+
+    /* ── Stats Grid ───────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+    @media (min-width: 640px) {
+      .stats-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .stat-card {
+      border-radius: var(--radius);
+      padding: 14px;
+      color: white;
+      text-align: center;
+      box-shadow: var(--shadow-md);
+    }
+    .stat-card .label {
+      font-size: 11px;
+      opacity: .85;
+      font-weight: 500;
+    }
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin: 4px 0 2px;
+      font-family: var(--mono);
+    }
+    .stat-card .sub {
+      font-size: 11px;
+      opacity: .7;
+    }
+    .stat-green  { background: linear-gradient(135deg, #16a34a, #15803d); }
+    .stat-blue   { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .stat-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .stat-orange { background: linear-gradient(135deg, #f97316, #ea580c); }
+
+    .progress-bar {
+      height: 4px;
+      background: rgba(255,255,255,.3);
+      border-radius: 99px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: rgba(255,255,255,.9);
+      border-radius: 99px;
+      transition: width .5s ease;
+    }
+
+    /* ── Main 2-col layout ────────────────────────────────────── */
+    .main-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    @media (min-width: 900px) {
+      .main-grid { grid-template-columns: 1fr 320px; }
+    }
+
+    /* ── Habit Table ──────────────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--green) var(--surface-2);
+    }
+    .table-wrap::-webkit-scrollbar { height: 6px; }
+    .table-wrap::-webkit-scrollbar-track { background: var(--surface-2); }
+    .table-wrap::-webkit-scrollbar-thumb { background: var(--green); border-radius: 99px; }
+
+    .habit-table {
+      min-width: max-content;
+      width: 100%;
+    }
+
+    .table-row {
+      display: flex;
+      align-items: stretch;
+    }
+    .table-row:not(:last-child) {
+      border-bottom: 1px solid var(--border);
+    }
+    .table-row:hover:not(.table-header):not(.score-row) {
+      background: var(--surface-2);
+    }
+
+    .table-header { background: var(--surface-2); }
+    .score-row    { background: var(--surface-2); font-weight: 700; }
+
+    .col-name {
+      width: 148px;
+      flex-shrink: 0;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      position: sticky;
+      left: 0;
+      background: inherit;
+      z-index: 5;
+      border-right: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+    }
+    .col-name.header { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+
+    .col-day {
+      width: 34px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      border-left: 1px solid var(--border);
+    }
+    .col-day.header { font-weight: 600; color: var(--text-2); height: 36px; }
+
+    .col-total {
+      width: 50px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      border-left: 2px solid var(--border);
+      color: var(--text-2);
+    }
+    .col-total.header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+
+    /* Cell button */
+    .cell-btn {
+      width: 34px;
+      height: 36px;
+      border: none;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .1s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      border-left: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .cell-btn:active { transform: scale(.85); }
+    .cell-done  { background: var(--green); color: white; }
+    .cell-done:hover  { background: #15803d; }
+    .cell-empty { background: var(--red-pale); color: var(--red); }
+    .cell-empty:hover { background: #fecaca; }
+    body.dark .cell-empty { background: #2d0a0a; color: #f87171; }
+    body.dark .cell-empty:hover { background: #3f0e0e; }
+    .cell-btn.target-hit { box-shadow: inset 0 0 0 2px rgba(22,163,74,.4); }
+
+    /* Score cells */
+    .score-cell {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .score-failed  { color: var(--text-3); }
+    .score-ok      { background: #bbf7d0; color: #15803d; }
+    .score-perfect { background: var(--green); color: white; }
+    body.dark .score-ok { background: #14532d; color: #4ade80; }
+
+    /* ── Charts ───────────────────────────────────────────────── */
+    .chart-section { margin-bottom: 12px; }
+    .chart-container { height: 180px; }
+    @media (min-width: 640px) { .chart-container { height: 220px; } }
+
+    /* ── Right panel ──────────────────────────────────────────── */
+    .right-panel { display: flex; flex-direction: column; gap: 12px; }
+
+    /* Pie legend */
+    .pie-legend {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .pie-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text-2);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Habit progress bars */
+    .habit-progress-list { display: flex; flex-direction: column; gap: 10px; }
+    .hp-row { display: flex; flex-direction: column; gap: 3px; }
+    .hp-labels {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .hp-name  { font-size: 11px; color: var(--text); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
+    .hp-count { font-size: 10px; color: var(--text-3); font-family: var(--mono); flex-shrink: 0; }
+    .hp-bar   { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .hp-fill  {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--green-light), var(--green));
+      transition: width .5s ease;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      color: var(--text-3);
+      font-size: 11px;
+      padding: 24px 16px 8px;
+      line-height: 1.8;
+    }
+
+    /* ── Modal Confirm ────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999;
+      padding: 20px;
+    }
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 340px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .modal p  { font-size: 13px; color: var(--text-2); margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-modal-cancel {
+      padding: 9px 16px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface-2);
+      color: var(--text); font-family: var(--font); font-size: 13px; cursor: pointer;
+    }
+    .btn-modal-confirm {
+      padding: 9px 16px; border-radius: var(--radius-sm);
+      border: none; background: var(--red); color: white;
+      font-family: var(--font); font-size: 13px; cursor: pointer; font-weight: 600;
+    }
+
+    /* ── Toast ────────────────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--gray-900);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 9999;
+      transition: transform .3s cubic-bezier(.175,.885,.32,1.275);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    body.dark .toast { background: #e2e8f0; color: #0f172a; }
+
+    /* ── Tablet/desktop tweaks ────────────────────────────────── */
+    @media (min-width: 640px) {
+      .col-name { width: 160px; }
+      .col-day  { width: 36px; }
+      .cell-btn { width: 36px; height: 38px; font-size: 12px; }
+      .container { padding: 0 24px 48px; }
+    }
+
+    /* ── Safe area (notch / dynamic island) ───────────────────── */
+    @supports (padding: env(safe-area-inset-top)) {
+      .header {
+        padding-top: calc(16px + env(safe-area-inset-top));
+      }
+      footer {
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+      }
+    }
+
+    /* ── Scrollbar for desktop ────────────────────────────────── */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--surface-2); }
+    ::-webkit-scrollbar-thumb { background: var(--green); border-radius: 99px; }
+  </style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="modal" style="display:none">
+  <div class="modal">
+    <h3>⚠️ Reiniciar datos</h3>
+    <p>Se borrarán todos los registros de los 30 días. Esta acción no se puede deshacer.</p>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="modal-cancel">Cancelar</button>
+      <button class="btn-modal-confirm" id="modal-confirm">Reiniciar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Constants ─────────────────────────────────────────────── */
+const HABITS = [
+  "🏋️ Gimnasio/Ejercicio",
+  "🙏 Orar diario",
+  "💼 90min Trabajo Profundo",
+  "😴 Dormir 8hrs",
+  "💧 Beber 4 Litros",
+  "🚫 Sin distracciones",
+  "🥗 Comer saludable",
+  "📚 60min Estudio",
+  "🚿 Ducha fría",
+  "📖 Leer 10 Páginas"
+];
+const DAYS = 30;
+const TARGET = 7;
+const STORAGE_KEY = 'habit-tracker-data-v2';
+
+/* ── State ─────────────────────────────────────────────────── */
+let data = loadData();
+let darkMode = loadTheme();
+if (darkMode) document.body.classList.add('dark');
+
+function loadData() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) {
+      const p = JSON.parse(s);
+      if (Array.isArray(p.data) && p.data.length === HABITS.length) return p.data;
+    }
+  } catch(e) {}
+  return HABITS.map(() => Array(DAYS).fill(false));
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, savedAt: new Date().toISOString() }));
+  } catch(e) {}
+}
+
+function loadTheme() {
+  try { return localStorage.getItem('habit-dark') === '1'; } catch(e) { return false; }
+}
+function saveTheme() {
+  try { localStorage.setItem('habit-dark', darkMode ? '1' : '0'); } catch(e) {}
+}
+
+/* ── Computed ──────────────────────────────────────────────── */
+function getDailyScores() {
+  return Array.from({ length: DAYS }, (_, d) =>
+    data.reduce((acc, row) => acc + (row[d] ? 1 : 0), 0)
+  );
+}
+function getHabitTotals() {
+  return data.map(row => row.filter(Boolean).length);
+}
+function getStats(scores) {
+  const failed   = scores.filter(s => s < TARGET).length;
+  const perfect  = scores.filter(s => s === HABITS.length).length;
+  const achieved = scores.filter(s => s >= TARGET && s < HABITS.length).length;
+  return { failed, achieved, perfect };
+}
+
+/* ── Toast ─────────────────────────────────────────────────── */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ── Toggle ────────────────────────────────────────────────── */
+function toggleHabit(h, d) {
+  data[h][d] = !data[h][d];
+  saveData();
+  render();
+}
+
+/* ── Export ────────────────────────────────────────────────── */
+function exportData() {
+  const obj = { habits: HABITS, days: DAYS, data, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'habitos-backup.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Datos exportados');
+}
+
+/* ── Dark mode ─────────────────────────────────────────────── */
+function toggleDark() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+  saveTheme();
+  render();
+}
+
+/* ── Reset modal ───────────────────────────────────────────── */
+function showResetModal() {
+  document.getElementById('modal').style.display = 'flex';
+}
+document.getElementById('modal-cancel').onclick = () => {
+  document.getElementById('modal').style.display = 'none';
+};
+document.getElementById('modal-confirm').onclick = () => {
+  data = HABITS.map(() => Array(DAYS).fill(false));
+  saveData();
+  document.getElementById('modal').style.display = 'none';
+  showToast('🔄 Datos reiniciados');
+  render();
+};
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal'))
+    document.getElementById('modal').style.display = 'none';
+});
+
+/* ── SVG Icons ─────────────────────────────────────────────── */
+const ICON_MOON   = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>`;
+const ICON_SUN    = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+const ICON_DL     = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+const ICON_RESET  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>`;
+
+/* ── Recharts chart ────────────────────────────────────────── */
+function renderCharts(scores) {
+  const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+          PieChart, Pie, Cell } = Recharts;
+  const { createElement: h } = React;
+
+  const chartData = scores.map((score, i) => ({ day: i + 1, score, meta: TARGET }));
+
+  const areaColor   = '#22c55e';
+  const gridColor   = darkMode ? '#1e3150' : '#e5e7eb';
+  const axisColor   = darkMode ? '#64748b' : '#9ca3af';
+  const tooltipBg   = darkMode ? '#0f1f35' : '#ffffff';
+  const tooltipBorder = darkMode ? '#1e3150' : '#e5e7eb';
+
+  const areaEl = h(ResponsiveContainer, { width: '100%', height: '100%' },
+    h(AreaChart, { data: chartData, margin: { top: 8, right: 8, bottom: 0, left: -20 } },
+      h(CartesianGrid, { strokeDasharray: '3 3', stroke: gridColor }),
+      h(XAxis, { dataKey: 'day', stroke: axisColor, fontSize: 10, tickLine: false }),
+      h(YAxis, { domain: [0, HABITS.length], stroke: axisColor, fontSize: 10, tickLine: false }),
+      h(Tooltip, {
+        contentStyle: { background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, fontSize: 12 },
+        labelStyle: { color: darkMode ? '#e2e8f0' : '#374151', fontWeight: 600 },
+        formatter: (v, n) => [v, n === 'score' ? 'Hábitos' : 'Meta']
+      }),
+      h(Area, { type: 'monotone', dataKey: 'score', stroke: areaColor, fill: areaColor, fillOpacity: .25, strokeWidth: 2, name: 'score', dot: false }),
+      h(Area, { type: 'monotone', dataKey: 'meta', stroke: '#6b7280', fill: 'none', strokeDasharray: '5 5', strokeWidth: 1.5, name: 'meta', dot: false })
+    )
+  );
+
+  const stats = getStats(scores);
+  const pieData = [
+    { name: 'Fallidos',  value: stats.failed,   color: '#ef4444' },
+    { name: 'Logrados',  value: stats.achieved,  color: '#86efac' },
+    { name: 'Perfectos', value: stats.perfect,   color: '#16a34a' }
+  ].filter(d => d.value > 0);
+
+  const pieEl = h(ResponsiveContainer, { width: '100%', height: '100%' },
+    h(PieChart, {},
+      h(Pie, {
+        data: pieData, cx: '50%', cy: '50%',
+        innerRadius: 40, outerRadius: 68, paddingAngle: 3,
+        dataKey: 'value'
+      }, ...pieData.map((d, i) => h(Cell, { key: i, fill: d.color }))),
+      h(Tooltip, {
+        contentStyle: { background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8, fontSize: 12 },
+        formatter: (v, n) => [v + ' días', n]
+      })
+    )
+  );
+
+  ReactDOM.render(areaEl, document.getElementById('chart-area'));
+  ReactDOM.render(pieEl, document.getElementById('chart-pie'));
+
+  // Pie legend
+  const legend = document.getElementById('pie-legend');
+  legend.innerHTML = pieData.map(d =>
+    `<div class="pie-legend-item">
+      <div class="legend-dot" style="background:${d.color}"></div>
+      <span>${d.name}: <strong>${d.value}</strong></span>
+    </div>`
+  ).join('');
+}
+
+/* ── Main render ───────────────────────────────────────────── */
+function render() {
+  const scores = getDailyScores();
+  const totals = getHabitTotals();
+  const stats  = getStats(scores);
+  const totalCompleted = data.flat().filter(Boolean).length;
+  const totalPossible  = HABITS.length * DAYS;
+  const rate = totalCompleted / totalPossible;
+  const bestHabit = HABITS.reduce((best, h, i) => totals[i] > (totals[best] || 0) ? i : best, 0);
+
+  const app = document.getElementById('app');
+
+  /* ── Header ── */
+  const headerHTML = `
+    <header class="header">
+      <div class="header-inner">
+        <div class="header-title">
+          <span class="emoji">📊</span>
+          <h1>Rastreador de Hábitos<br>30 Días</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-icon" onclick="toggleDark()" title="Cambiar tema">
+            ${darkMode ? ICON_SUN : ICON_MOON}
+          </button>
+          <button class="btn btn-sm" onclick="exportData()">
+            ${ICON_DL} Exportar
+          </button>
+          <button class="btn btn-sm btn-danger" onclick="showResetModal()">
+            ${ICON_RESET} Reiniciar
+          </button>
+        </div>
+      </div>
+    </header>`;
+
+  /* ── Stat cards ── */
+  const statsHTML = `
+    <div class="stats-grid">
+      <div class="stat-card stat-green">
+        <div class="label">Completado Total</div>
+        <div class="value">${totalCompleted}</div>
+        <div class="sub">de ${totalPossible}</div>
+      </div>
+      <div class="stat-card stat-blue">
+        <div class="label">Tasa de Éxito</div>
+        <div class="value">${(rate * 100).toFixed(1)}%</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${rate*100}%"></div></div>
+      </div>
+      <div class="stat-card stat-purple">
+        <div class="label">Días Perfectos</div>
+        <div class="value">${stats.perfect}</div>
+        <div class="sub">de ${DAYS} días</div>
+      </div>
+      <div class="stat-card stat-orange">
+        <div class="label">Mejor Hábito</div>
+        <div class="value" style="font-size:13px;padding-top:4px;font-family:var(--font)">${HABITS[bestHabit].slice(3)}</div>
+        <div class="sub">${((totals[bestHabit]/DAYS)*100).toFixed(0)}% completado</div>
+      </div>
+    </div>`;
+
+  /* ── Habit table ── */
+  const headerRow = `
+    <div class="table-row table-header">
+      <div class="col-name header">Hábito</div>
+      ${Array.from({length:DAYS},(_,i)=>`<div class="col-day header">${i+1}</div>`).join('')}
+      <div class="col-total header">Σ</div>
+    </div>`;
+
+  const habitRows = HABITS.map((habit, hi) => {
+    const cells = Array.from({length:DAYS},(_,di) => {
+      const done = data[hi][di];
+      const targetHit = scores[di] >= TARGET;
+      return `<button
+        class="cell-btn ${done ? 'cell-done' : 'cell-empty'}${targetHit ? ' target-hit' : ''}"
+        onclick="toggleHabit(${hi},${di})"
+        aria-label="${done ? 'Completado' : 'Sin completar'}"
+      >${done ? '✓' : '·'}</button>`;
+    }).join('');
+    return `
+      <div class="table-row">
+        <div class="col-name">${habit}</div>
+        ${cells}
+        <div class="col-total">${totals[hi]}</div>
+      </div>`;
+  }).join('');
+
+  const scoreRow = `
+    <div class="table-row score-row">
+      <div class="col-name" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2)">Puntuación</div>
+      ${scores.map(s => {
+        const cls = s === HABITS.length ? 'score-perfect' : s >= TARGET ? 'score-ok' : 'score-failed';
+        return `<div class="col-day score-cell ${cls}">${s}</div>`;
+      }).join('')}
+      <div class="col-total" style="background:var(--green);color:white">${scores.reduce((a,b)=>a+b,0)}</div>
+    </div>`;
+
+  /* ── Habit progress bars ── */
+  const progressBars = HABITS.map((h, i) => {
+    const pct = (totals[i] / DAYS * 100).toFixed(0);
+    return `
+      <div class="hp-row">
+        <div class="hp-labels">
+          <span class="hp-name">${h}</span>
+          <span class="hp-count">${totals[i]}/${DAYS}</span>
+        </div>
+        <div class="hp-bar">
+          <div class="hp-fill" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  /* ── Full HTML ── */
+  app.innerHTML = `
+    ${headerHTML}
+    <div class="container">
+
+      ${statsHTML}
+
+      <!-- Area chart -->
+      <div class="card chart-section">
+        <div class="card-header">
+          <span class="card-title">📈 Progreso Diario</span>
+          <span style="font-size:11px;color:var(--text-3)">Meta: ${TARGET} hábitos/día</span>
+        </div>
+        <div class="card-body" style="padding-bottom:8px">
+          <div class="chart-container" id="chart-area"></div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+
+        <!-- Habit table -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📋 Tabla de Hábitos</span>
+            <span style="font-size:11px;color:var(--text-3)">${DAYS} días · toca para marcar</span>
+          </div>
+          <div class="table-wrap">
+            <div class="habit-table">
+              ${headerRow}
+              ${habitRows}
+              ${scoreRow}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right panel -->
+        <div class="right-panel">
+
+          <!-- Pie chart -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🗂 Resumen de Días</span>
+            </div>
+            <div class="card-body" style="padding-bottom:8px">
+              <div style="height:160px" id="chart-pie"></div>
+              <div class="pie-legend" id="pie-legend"></div>
+            </div>
+          </div>
+
+          <!-- Progress per habit -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">🎯 Por Hábito</span>
+            </div>
+            <div class="card-body">
+              <div class="habit-progress-list">
+                ${progressBars}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <footer>
+        <p>💡 Toca las celdas para marcar hábitos completados</p>
+        <p>Los datos se guardan automáticamente en tu navegador · <span id="sw-status"></span></p>
+      </footer>
+    </div>`;
+
+  /* Render charts after DOM update */
+  setTimeout(() => renderCharts(scores), 0);
+}
+
+/* ── Init ──────────────────────────────────────────────────── */
+render();
+
+/* ── Service Worker ────────────────────────────────────────── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    const el = document.getElementById('sw-status');
+    if (el) el.textContent = '📡 Disponible offline';
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>
